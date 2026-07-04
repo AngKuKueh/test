@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>遊戲序號管理器</title>
+    <title>遊戲序號分享器</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -92,6 +92,7 @@
             font-size: 16px;
             font-family: monospace;
             outline: none;
+            transition: color 0.3s;
         }
 
         .copy-btn, .delete-btn {
@@ -119,10 +120,10 @@
 <body>
 
     <div class="app-container">
-        <h2>🎮 遊戲序號管理器</h2>
+        <h2>🎮 遊戲序號分享器</h2>
         
         <div class="input-group">
-            <input type="text" id="newKeyInput" placeholder="請貼上或輸入新的遊戲序號...">
+            <input type="text" id="newKeyInput" placeholder="朋友也可以在這裡自己貼上新序號...">
             <button id="addBtn" class="add-btn">新增</button>
         </div>
 
@@ -130,13 +131,24 @@
         </div>
     </div>
 
-<script>
+    <script src="keys.js"></script>
+
+    <script>
         document.addEventListener("DOMContentLoaded", () => {
             const addBtn = document.getElementById("addBtn");
             const newKeyInput = document.getElementById("newKeyInput");
             const keyList = document.getElementById("keyList");
 
-            loadKeys();
+            // 檢查 sharedKeys 是否有成功從 keys.js 載入
+            if (typeof sharedKeys !== 'undefined') {
+                sharedKeys.forEach(key => {
+                    if (key.trim() !== "") {
+                        addKeyToDOM(key.trim());
+                    }
+                });
+            } else {
+                console.warn("找不到 keys.js 或沒有 sharedKeys 資料");
+            }
 
             addBtn.addEventListener("click", () => handleAddKey());
             newKeyInput.addEventListener("keypress", (event) => {
@@ -161,7 +173,6 @@
                     }
                 });
 
-                saveKeys();
                 newKeyInput.value = "";
             }
 
@@ -178,17 +189,13 @@
                 copyBtn.className = "copy-btn";
                 copyBtn.textContent = "複製";
                 
-                // 🌟 點擊複製後的行為修改
                 copyBtn.addEventListener("click", () => {
                     navigator.clipboard.writeText(keyText).then(() => {
-                        // 1. 按鈕永久顯示「已複製」，並套用成功顏色
                         copyBtn.textContent = "已複製";
                         copyBtn.classList.add("success");
                         
-                        // 2. 序號文字加上刪除線並變暗，清楚標示已使用
                         keyDisplay.style.textDecoration = "line-through";
                         keyDisplay.style.color = "#718093";
-                        
                     }).catch(err => {
                         console.error('複製失敗:', err);
                         alert("複製失敗！");
@@ -200,7 +207,6 @@
                 deleteBtn.textContent = "刪除";
                 deleteBtn.addEventListener("click", () => {
                     keyList.removeChild(keyItem);
-                    saveKeys(); 
                 });
 
                 keyItem.appendChild(keyDisplay);
@@ -208,20 +214,8 @@
                 keyItem.appendChild(deleteBtn);
                 keyList.appendChild(keyItem);
             }
-
-            function saveKeys() {
-                const keys = [];
-                const inputs = keyList.querySelectorAll('.key-item input');
-                inputs.forEach(input => keys.push(input.value));
-                localStorage.setItem('myGameKeys', JSON.stringify(keys));
-            }
-
-            function loadKeys() {
-                const savedKeys = JSON.parse(localStorage.getItem('myGameKeys') || '[]');
-                savedKeys.forEach(keyText => addKeyToDOM(keyText));
-            }
         });
     </script>
-    
+
 </body>
 </html>
