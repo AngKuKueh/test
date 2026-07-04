@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>遊戲序號分享器</title>
+    <title>燕雲序號</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -11,34 +11,42 @@
             color: #f5f6fa;
             display: flex;
             justify-content: center;
-            padding-top: 50px;
+            align-items: center; /* 讓整個容器在螢幕正中間 */
             margin: 0;
-            min-height: 100vh;
+            height: 100vh; /* 鎖定網頁高度剛好等於螢幕高度 */
+            overflow: hidden; /* 🌟 徹底禁止整個網頁出現上下滾動條 */
         }
 
         .app-container {
             background: #353b48;
-            padding: 30px;
+            padding: 20px 30px;
             border-radius: 12px;
             box-shadow: 0 8px 15px rgba(0,0,0,0.3);
-            width: 90%;
-            max-width: 800px; /* 為了容納兩排，把寬度加大 */
+            width: 95vw; /* 寬度佔滿螢幕 95% */
+            height: 90vh; /* 高度佔滿螢幕 90%，留出邊界 */
+            display: flex;
+            flex-direction: column;
         }
 
         h2 {
             margin-top: 0;
             text-align: center;
             color: #00a8ff;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
+            flex-shrink: 0; /* 確保標題不會因為序號太多而被壓縮 */
         }
 
         .key-list {
-            /* 🌟 排版魔法：設定每 20 個換一欄 (Column) */
-            display: grid;
-            grid-template-rows: repeat(20, auto); 
-            grid-auto-flow: column;
+            /* 🌟 動態排版魔法：向下排列，碰到底部自動換到右邊新的一欄 */
+            display: flex;
+            flex-direction: column;
+            flex-wrap: wrap; 
+            align-content: flex-start;
             gap: 12px;
-            overflow-x: auto; /* 如果序號多到變成 3 欄、4 欄，允許左右滑動 */
+            
+            height: 100%; /* 自動填滿標題下方的所有剩餘空間 */
+            overflow-x: auto; /* 序號很多欄的時候，允許左右滑動 */
+            overflow-y: hidden; /* 確保絕對不會上下滑動 */
             padding-bottom: 10px;
         }
 
@@ -50,11 +58,11 @@
             border-radius: 6px;
             align-items: center;
             border: 1px solid #718093;
-            min-width: 250px; /* 確保每一欄有足夠的寬度 */
+            width: max-content; /* 讓框框的寬度「剛剛好」包住序號和按鈕 */
         }
 
         .key-item input {
-            flex-grow: 1;
+            width: 155px; /* 🌟 寫死輸入框寬度，按鈕就會直接貼齊在紅色標記線的位置 */
             background: transparent;
             border: none;
             color: #f5f6fa;
@@ -78,13 +86,20 @@
         .copy-btn:hover { background-color: #4cd137; }
         .copy-btn.success { background-color: #e1b12c; }
 
-        /* 手機版自動變回單排往下排，避免畫面擠破 */
-        @media (max-width: 600px) {
-            .key-list {
-                grid-template-rows: auto;
-                grid-auto-flow: row;
-                grid-template-columns: 1fr;
-            }
+        /* 美化一下底部的左右滾動條，讓它在深色背景更好看 */
+        ::-webkit-scrollbar {
+            height: 12px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #2f3640;
+            border-radius: 6px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #718093;
+            border-radius: 6px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00a8ff;
         }
     </style>
 </head>
@@ -100,12 +115,8 @@
     <script>
         document.addEventListener("DOMContentLoaded", () => {
             const keyList = document.getElementById("keyList");
-
-            // 從電腦讀取「已經複製過的序號」清單
-            // 如果是第一次使用，會得到一個空陣列 []
             const usedKeys = JSON.parse(localStorage.getItem('myUsedKeys') || '[]');
 
-            // 檢查 sharedKeys 是否有從 keys.js 成功載入
             if (typeof sharedKeys !== 'undefined') {
                 sharedKeys.forEach(key => {
                     if (key.trim() !== "") {
@@ -129,17 +140,14 @@
                 copyBtn.className = "copy-btn";
                 copyBtn.textContent = "複製";
                 
-                // 🌟 網頁載入時檢查：這個序號是不是在已經使用的清單裡？
                 if (usedKeys.includes(keyText)) {
                     markAsUsed(copyBtn, keyDisplay);
                 }
                 
                 copyBtn.addEventListener("click", () => {
                     navigator.clipboard.writeText(keyText).then(() => {
-                        // 點擊複製後改變外觀
                         markAsUsed(copyBtn, keyDisplay);
                         
-                        // 將這個序號存入已使用清單，並儲存到電腦裡
                         if (!usedKeys.includes(keyText)) {
                             usedKeys.push(keyText);
                             localStorage.setItem('myUsedKeys', JSON.stringify(usedKeys));
@@ -155,7 +163,6 @@
                 keyList.appendChild(keyItem);
             }
 
-            // 負責把序號變成「已使用」外觀的小函數
             function markAsUsed(btn, display) {
                 btn.textContent = "已複製";
                 btn.classList.add("success");
