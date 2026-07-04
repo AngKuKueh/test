@@ -112,31 +112,33 @@
 
     <script src="keys.js"></script>
 
-   <script>
+<script>
     document.addEventListener("DOMContentLoaded", async () => {
         const keyList = document.getElementById("keyList");
         const usedKeys = JSON.parse(localStorage.getItem('myUsedKeys') || '[]');
         
-        // 🌟 把你的 CSV 發佈連結貼在這裡
+        // 🌟 把剛剛組裝好的 CSV 連結放在這
         const csvUrl = "https://docs.google.com/spreadsheets/d/1OxGtnWXhjQEUlY1eI7tkQXdDOUSU3BPQaHswRTSkiH0/gviz/tq?tqx=out:csv&sheet=Sheet1";
 
         try {
             const response = await fetch(csvUrl);
+            if (!response.ok) throw new Error("網路請求失敗");
+            
             const data = await response.text();
             
-            // 將 CSV 解析成陣列
+            // 解析 CSV：以換行符號切割，並過濾掉標題列(第一行)與空行
             const lines = data.split('\n');
-            const sharedKeys = lines.slice(1).map(line => line.trim()).filter(k => k !== "");
+            const sharedKeys = lines.slice(1).map(line => line.replace(/"/g, '').trim()).filter(k => k !== "");
 
             sharedKeys.forEach(key => addKeyToDOM(key));
         } catch (e) {
-            keyList.innerHTML = "<p style='color:red;'>無法讀取序號，請檢查連結設定。</p>";
+            console.error(e);
+            keyList.innerHTML = `<p style='text-align:center; color:#e84118;'>讀取錯誤: ${e.message}。請確認試算表已設為「共用」並連結正確。</p>`;
         }
-
-        // --- 以下 addKeyToDOM 和 markAsUsed 函數內容不變 ---
-        // (請保留你原本程式碼中這兩個函數的邏輯)
+        
+        // 記得保留你原本的 addKeyToDOM 和 markAsUsed 函數在這裡...
     });
-    </script>
+</script>
 
 </body>
 </html>
