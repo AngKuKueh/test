@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>遊戲序號管理器</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #2f3640;
+            color: #f5f6fa;
+            display: flex;
+            justify-content: center;
+            padding-top: 50px;
+            margin: 0;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            background: #353b48;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 15px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 500px;
+        }
+
+        h2 {
+            margin-top: 0;
+            text-align: center;
+            color: #00a8ff;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .input-group input {
+            flex-grow: 1;
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #718093;
+            border-radius: 6px;
+            background-color: #f5f6fa;
+            color: #2f3640;
+            outline: none;
+        }
+
+        .input-group input:focus {
+            border-color: #00a8ff;
+        }
+
+        .add-btn {
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            background-color: #00a8ff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            transition: 0.2s;
+        }
+
+        .add-btn:hover {
+            background-color: #0097e6;
+        }
+
+        .key-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .key-item {
+            display: flex;
+            gap: 10px;
+            background: #2f3640;
+            padding: 10px;
+            border-radius: 6px;
+            align-items: center;
+            border: 1px solid #718093;
+        }
+
+        .key-item input {
+            flex-grow: 1;
+            background: transparent;
+            border: none;
+            color: #f5f6fa;
+            font-size: 16px;
+            font-family: monospace;
+            outline: none;
+        }
+
+        .copy-btn, .delete-btn {
+            padding: 8px 12px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            transition: 0.2s;
+            color: white;
+        }
+
+        .copy-btn {
+            background-color: #44bd32;
+        }
+        .copy-btn:hover { background-color: #4cd137; }
+        .copy-btn.success { background-color: #e1b12c; }
+
+        .delete-btn {
+            background-color: #c23616;
+        }
+        .delete-btn:hover { background-color: #e84118; }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <h2>🎮 遊戲序號管理器</h2>
+        
+        <div class="input-group">
+            <input type="text" id="newKeyInput" placeholder="請貼上或輸入新的遊戲序號...">
+            <button id="addBtn" class="add-btn">新增</button>
+        </div>
+
+        <div id="keyList" class="key-list">
+        </div>
+    </div>
+
+<script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const addBtn = document.getElementById("addBtn");
+            const newKeyInput = document.getElementById("newKeyInput");
+            const keyList = document.getElementById("keyList");
+
+            // 網頁載入時讀取存檔
+            loadKeys();
+
+            addBtn.addEventListener("click", () => handleAddKey());
+            newKeyInput.addEventListener("keypress", (event) => {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    handleAddKey();
+                }
+            });
+
+            function handleAddKey() {
+                const rawText = newKeyInput.value.trim();
+                if (rawText === "") {
+                    alert("請先輸入序號！");
+                    return;
+                }
+                
+                // 🌟 神奇魔法在這裡：使用正則表達式分割字串
+                // /[\s,]+/ 代表遇到「任何空白 (包含換行)」或「逗號」就切開
+                const keysArray = rawText.split(/[\s,]+/);
+                
+                // 將切開後的序號，一個一個丟進清單裡
+                keysArray.forEach(keyText => {
+                    if (keyText !== "") { // 確保不是空字串
+                        addKeyToDOM(keyText);
+                    }
+                });
+
+                // 一次存檔並清空輸入框
+                saveKeys();
+                newKeyInput.value = "";
+            }
+
+            function addKeyToDOM(keyText) {
+                const keyItem = document.createElement("div");
+                keyItem.className = "key-item";
+
+                const keyDisplay = document.createElement("input");
+                keyDisplay.type = "text";
+                keyDisplay.value = keyText;
+                keyDisplay.readOnly = true;
+
+                const copyBtn = document.createElement("button");
+                copyBtn.className = "copy-btn";
+                copyBtn.textContent = "複製";
+                copyBtn.addEventListener("click", () => {
+                    navigator.clipboard.writeText(keyText).then(() => {
+                        copyBtn.textContent = "已複製！";
+                        copyBtn.classList.add("success");
+                        setTimeout(() => {
+                            copyBtn.textContent = "複製";
+                            copyBtn.classList.remove("success");
+                        }, 1500);
+                    }).catch(err => {
+                        console.error('複製失敗:', err);
+                        alert("複製失敗！");
+                    });
+                });
+
+                const deleteBtn = document.createElement("button");
+                deleteBtn.className = "delete-btn";
+                deleteBtn.textContent = "刪除";
+                deleteBtn.addEventListener("click", () => {
+                    keyList.removeChild(keyItem);
+                    saveKeys(); 
+                });
+
+                keyItem.appendChild(keyDisplay);
+                keyItem.appendChild(copyBtn);
+                keyItem.appendChild(deleteBtn);
+                keyList.appendChild(keyItem);
+            }
+
+            function saveKeys() {
+                const keys = [];
+                const inputs = keyList.querySelectorAll('.key-item input');
+                inputs.forEach(input => keys.push(input.value));
+                localStorage.setItem('myGameKeys', JSON.stringify(keys));
+            }
+
+            function loadKeys() {
+                const savedKeys = JSON.parse(localStorage.getItem('myGameKeys') || '[]');
+                savedKeys.forEach(keyText => addKeyToDOM(keyText));
+            }
+        });
+    </script>
+
+</body>
+</html>
