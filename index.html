@@ -136,7 +136,6 @@
             const newKeyInput = document.getElementById("newKeyInput");
             const keyList = document.getElementById("keyList");
 
-            // 網頁載入時讀取存檔
             loadKeys();
 
             addBtn.addEventListener("click", () => handleAddKey());
@@ -154,18 +153,14 @@
                     return;
                 }
                 
-                // 🌟 神奇魔法在這裡：使用正則表達式分割字串
-                // /[\s,]+/ 代表遇到「任何空白 (包含換行)」或「逗號」就切開
                 const keysArray = rawText.split(/[\s,]+/);
                 
-                // 將切開後的序號，一個一個丟進清單裡
                 keysArray.forEach(keyText => {
-                    if (keyText !== "") { // 確保不是空字串
+                    if (keyText !== "") {
                         addKeyToDOM(keyText);
                     }
                 });
 
-                // 一次存檔並清空輸入框
                 saveKeys();
                 newKeyInput.value = "";
             }
@@ -182,14 +177,18 @@
                 const copyBtn = document.createElement("button");
                 copyBtn.className = "copy-btn";
                 copyBtn.textContent = "複製";
+                
+                // 🌟 點擊複製後的行為修改
                 copyBtn.addEventListener("click", () => {
                     navigator.clipboard.writeText(keyText).then(() => {
-                        copyBtn.textContent = "已複製！";
+                        // 1. 按鈕永久顯示「已複製」，並套用成功顏色
+                        copyBtn.textContent = "已複製";
                         copyBtn.classList.add("success");
-                        setTimeout(() => {
-                            copyBtn.textContent = "複製";
-                            copyBtn.classList.remove("success");
-                        }, 1500);
+                        
+                        // 2. 序號文字加上刪除線並變暗，清楚標示已使用
+                        keyDisplay.style.textDecoration = "line-through";
+                        keyDisplay.style.color = "#718093";
+                        
                     }).catch(err => {
                         console.error('複製失敗:', err);
                         alert("複製失敗！");
