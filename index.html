@@ -112,64 +112,30 @@
 
     <script src="keys.js"></script>
 
-    <script>
-        document.addEventListener("DOMContentLoaded", () => {
-            const keyList = document.getElementById("keyList");
-            const usedKeys = JSON.parse(localStorage.getItem('myUsedKeys') || '[]');
+   <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+        const keyList = document.getElementById("keyList");
+        const usedKeys = JSON.parse(localStorage.getItem('myUsedKeys') || '[]');
+        
+        // 🌟 把你的 CSV 發佈連結貼在這裡
+        const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHCgim2otGFZW_y4Sfobmm5xlzTr3p6wUvZugJZrl2KsPjday1ybKae8q-pRwaj8vrDLMevkNlOngu/pub?gid=0&single=true&output=csv";
 
-            if (typeof sharedKeys !== 'undefined') {
-                sharedKeys.forEach(key => {
-                    if (key.trim() !== "") {
-                        addKeyToDOM(key.trim());
-                    }
-                });
-            } else {
-                keyList.innerHTML = "<p style='text-align:center; color:#c23616;'>找不到 keys.js 或沒有序號資料</p>";
-            }
+        try {
+            const response = await fetch(csvUrl);
+            const data = await response.text();
+            
+            // 將 CSV 解析成陣列
+            const lines = data.split('\n');
+            const sharedKeys = lines.slice(1).map(line => line.trim()).filter(k => k !== "");
 
-            function addKeyToDOM(keyText) {
-                const keyItem = document.createElement("div");
-                keyItem.className = "key-item";
+            sharedKeys.forEach(key => addKeyToDOM(key));
+        } catch (e) {
+            keyList.innerHTML = "<p style='color:red;'>無法讀取序號，請檢查連結設定。</p>";
+        }
 
-                const keyDisplay = document.createElement("input");
-                keyDisplay.type = "text";
-                keyDisplay.value = keyText;
-                keyDisplay.readOnly = true;
-
-                const copyBtn = document.createElement("button");
-                copyBtn.className = "copy-btn";
-                copyBtn.textContent = "複製";
-                
-                if (usedKeys.includes(keyText)) {
-                    markAsUsed(copyBtn, keyDisplay);
-                }
-                
-                copyBtn.addEventListener("click", () => {
-                    navigator.clipboard.writeText(keyText).then(() => {
-                        markAsUsed(copyBtn, keyDisplay);
-                        
-                        if (!usedKeys.includes(keyText)) {
-                            usedKeys.push(keyText);
-                            localStorage.setItem('myUsedKeys', JSON.stringify(usedKeys));
-                        }
-                    }).catch(err => {
-                        console.error('複製失敗:', err);
-                        alert("複製失敗！");
-                    });
-                });
-
-                keyItem.appendChild(keyDisplay);
-                keyItem.appendChild(copyBtn);
-                keyList.appendChild(keyItem);
-            }
-
-            function markAsUsed(btn, display) {
-                btn.textContent = "已複製";
-                btn.classList.add("success");
-                display.style.textDecoration = "line-through";
-                display.style.color = "#718093";
-            }
-        });
+        // --- 以下 addKeyToDOM 和 markAsUsed 函數內容不變 ---
+        // (請保留你原本程式碼中這兩個函數的邏輯)
+    });
     </script>
 
 </body>
