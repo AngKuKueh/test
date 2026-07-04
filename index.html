@@ -62,7 +62,7 @@
         }
 
         .key-item input {
-            width: 155px; /* 🌟 寫死輸入框寬度，按鈕就會直接貼齊在紅色標記線的位置 */
+            width: 155px; /* 🌟 寫死輸入框寬度，按鈕就會直接貼齊 */
             background: transparent;
             border: none;
             color: #f5f6fa;
@@ -110,28 +110,83 @@
         <div id="keyList" class="key-list"></div>
     </div>
 
-    <script src="keys.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", async () => {
+            const keyList = document.getElementById("keyList");
+            const usedKeys = JSON.parse(localStorage.getItem('myUsedKeys') || '[]');
+            
+            // 🌟 這裡幫你把網址修正為「動態最新版連結」，移除中間的版本號
+            const rawGistUrl = "https://gist.githubusercontent.com/AngKuKueh/744a869a1fc16f2f3ce1430549cd5bee/raw/gistfile1.txt"; 
 
-<script>
-    document.addEventListener("DOMContentLoaded", async () => {
-        const keyList = document.getElementById("keyList");
-        const usedKeys = JSON.parse(localStorage.getItem('myUsedKeys') || '[]');
-        
-// 替換掉原本的 csvUrl 邏輯，改用這個：
-const rawGistUrl = "https://gist.githubusercontent.com/AngKuKueh/744a869a1fc16f2f3ce1430549cd5bee/raw/9ef3564fe8f96afb8cfdb8e13698ada5507ed8f2/gistfile1.txt"; 
+            try {
+                const response = await fetch(rawGistUrl);
+                if (!response.ok) throw new Error("網路讀取失敗");
+                
+                const data = await response.text();
+                
+                // 直接以換行切割，這比 CSV 更穩定
+                const sharedKeys = data.split('\n').map(k => k.trim()).filter(k => k !== "");
+                
+                if(sharedKeys.length === 0) {
+                    keyList.innerHTML = "<p style='text-align:center;'>目前沒有可用的序號。</p>";
+                    return;
+                }
 
-try {
-    const response = await fetch(rawGistUrl);
-    const data = await response.text();
-    
-    // 直接以換行切割，這比 CSV 更穩定
-    const sharedKeys = data.split('\n').map(k => k.trim()).filter(k => k !== "");
-    sharedKeys.forEach(key => addKeyToDOM(key));
-} catch (e) {
-    keyList.innerHTML = "<p style='color:red;'>無法讀取序號，請檢查網址。</p>";
-}
-    });
-</script>
+                // 呼叫下方的生成功能
+                sharedKeys.forEach(key => addKeyToDOM(key));
+                
+            } catch (e) {
+                console.error(e);
+                keyList.innerHTML = `<p style='color:#e84118; text-align:center;'>無法讀取序號，錯誤原因: ${e.message}</p>`;
+            }
+
+            // 🌟 補回原本遺失的建立 DOM 物件功能
+            function addKeyToDOM(keyText) {
+                const keyItem = document.createElement("div");
+                keyItem.className = "key-item";
+
+                const keyDisplay = document.createElement("input");
+                keyDisplay.type = "text";
+                keyDisplay.value = keyText;
+                keyDisplay.readOnly = true;
+
+                const copyBtn = document.createElement("button");
+                copyBtn.className = "copy-btn";
+                copyBtn.textContent = "複製";
+                
+                // 如果已經複製過，直接變更樣式
+                if (usedKeys.includes(keyText)) {
+                    markAsUsed(copyBtn, keyDisplay);
+                }
+                
+                // 點擊複製事件
+                copyBtn.addEventListener("click", () => {
+                    navigator.clipboard.writeText(keyText).then(() => {
+                        markAsUsed(copyBtn, keyDisplay);
+                        if (!usedKeys.includes(keyText)) {
+                            usedKeys.push(keyText);
+                            localStorage.setItem('myUsedKeys', JSON.stringify(usedKeys));
+                        }
+                    }).catch(err => {
+                        console.error('複製失敗:', err);
+                        alert("複製失敗！");
+                    });
+                });
+
+                keyItem.appendChild(keyDisplay);
+                keyItem.appendChild(copyBtn);
+                keyList.appendChild(keyItem);
+            }
+
+            // 🌟 補回原本遺失的變更為「已複製」樣式功能
+            function markAsUsed(btn, display) {
+                btn.textContent = "已複製";
+                btn.classList.add("success");
+                display.style.textDecoration = "line-through";
+                display.style.color = "#718093";
+            }
+        });
+    </script>
 
 </body>
 </html>
