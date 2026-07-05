@@ -3,22 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>燕雲序號</title>
+    <title>燕雲序號分享</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <div class="app-container">
+        <!-- 側邊欄 -->
         <aside class="sidebar">
             <div class="brand-title">🎮 燕雲序號</div>
+            
             <select id="yearSelect" class="year-select">
                 <option value="2026">2026 年</option>
                 <option value="2027">2027 年</option>
             </select>
-            <div id="monthList" class="month-list">
-                </div>
+            
+            <!-- 手機版專用：月份與暫存區下拉選單 -->
+            <select id="mobileMonthSelect" class="mobile-month-select"></select>
+
+            <!-- 電腦版專用：直列按鈕 -->
+            <div id="monthList" class="month-list"></div>
+            <hr class="sidebar-divider">
+            <button id="btnStash" class="month-btn stash-btn">📥 暫存區</button>
         </aside>
 
+        <!-- 主內容區 -->
         <main class="main-content">
             <header>
                 <h2 id="currentMonthTitle" class="current-month-title">載入中...</h2>
@@ -28,25 +37,28 @@
                 </div>
             </header>
 
+            <!-- 視圖 1：序號列表 -->
             <div id="viewList" class="view-section active">
                 <div id="keyList" class="key-list"></div>
             </div>
 
+            <!-- 視圖 2：智慧過濾 -->
             <div id="viewAdd" class="view-section">
                 <div class="add-container">
-                    <p class="hint-text">貼上的序號將會自動比對整個資料庫。系統會剔除所有已知序號，並將全新序號加入 <strong><span id="targetMonthText">當前月份</span></strong> 中。</p>
-                    <textarea id="rawInput" placeholder="請在此貼上大量、未經整理的序號..."></textarea>
+                    <!-- 文案改成通俗易懂 -->
+                    <p class="hint-text">請把大量、亂七八糟的序號直接貼在下面。系統會自動幫你挑出「全新」的序號，並把它們安全地放進 <strong>📥 暫存區</strong>，不會弄亂官方的月份列表喔！</p>
+                    <textarea id="rawInput" placeholder="請在此貼上大量序號... (連空白、逗號一起貼也沒關係)"></textarea>
                     
                     <div class="action-row">
-                        <button id="btnProcess" class="btn-large btn-process">✨ 自動比對與過濾</button>
+                        <button id="btnProcess" class="btn-large btn-process">✨ 自動找新序號</button>
                     </div>
 
                     <div id="processResult">
                         <p id="resultMsg" class="status-msg"></p>
-                        <textarea id="cleanOutput" rows="3" readonly placeholder="整理後的全新序號會顯示在這裡..."></textarea>
+                        <textarea id="cleanOutput" rows="3" readonly placeholder="過濾好的新序號會在這裡..."></textarea>
                         <div class="action-row" style="justify-content: flex-end;">
                             <button id="btnExportTxt" class="btn-large btn-export">📄 匯出 TXT</button>
-                            <button id="btnCopyDC" class="btn-large btn-dc">💬 複製給 DC 管理員</button>
+                            <button id="btnCopyDC" class="btn-large btn-dc">💬 複製給 DC</button>
                         </div>
                     </div>
                 </div>
@@ -64,17 +76,17 @@
             let selectedMonth = systemMonth.toString();
 
             let keysDB = {}; 
-            let newlyProcessedKeys = [];
+            let userStashKeys = []; 
             const usedKeys = JSON.parse(localStorage.getItem('myUsedKeys') || '[]');
             const rawGistUrl = "https://gist.githubusercontent.com/AngKuKueh/744a869a1fc16f2f3ce1430549cd5bee/raw/gistfile1.txt"; 
 
             const keyList = document.getElementById("keyList");
             const monthList = document.getElementById("monthList");
+            const mobileMonthSelect = document.getElementById("mobileMonthSelect");
             const yearSelect = document.getElementById("yearSelect");
             const currentMonthTitle = document.getElementById("currentMonthTitle");
-            const targetMonthText = document.getElementById("targetMonthText");
+            const btnStash = document.getElementById("btnStash");
 
-            // 初始化：抓取 Gist
             try {
                 const response = await fetch(rawGistUrl);
                 if (!response.ok) throw new Error("讀取失敗");
@@ -82,96 +94,150 @@
                 parseGistData(data);
             } catch (e) {
                 console.error(e);
-                keyList.innerHTML = `<p style="color:red; grid-column: 1/-1;">讀取錯誤</p>`;
+                keyList.innerHTML = `<p style="color:red; grid-column: 1/-1;">讀取資料失敗，請確認網路連線。</p>`;
             }
 
-            // 解析 Gist 文字檔邏輯
             function parseGistData(text) {
                 const lines = text.split('\n');
                 let parseTarget = `${systemYear}-${systemMonth}`; 
                 
                 if(!keysDB[parseTarget]) keysDB[parseTarget] = [];
-
                 lines.forEach(line => {
                     let trimLine = line.trim();
                     if (trimLine === "") return;
-                    
                     const tagMatch = trimLine.match(/^\[?(\d{4})-(\d{1,2})\]?/);
                     if (tagMatch) {
                         parseTarget = `${tagMatch[1]}-${parseInt(tagMatch[2])}`;
                         if(!keysDB[parseTarget]) keysDB[parseTarget] = [];
                         return; 
                     }
-                    
                     keysDB[parseTarget].push(trimLine);
                 });
-                
                 initUI();
             }
 
-            // 初始化 UI
             function initUI() {
                 if(yearSelect.querySelector(`option[value="${systemYear}"]`)) {
                     yearSelect.value = systemYear;
                 }
                 
-                renderMonthButtons();
+                renderSidebar();
                 updateMainView();
                 
                 yearSelect.addEventListener("change", (e) => {
                     selectedYear = e.target.value;
                     selectedMonth = selectedYear === "2026" ? systemMonth.toString() : "1";
-                    renderMonthButtons();
+                    renderSidebar();
                     updateMainView();
+                });
+
+                // 手機版下拉選單事件
+                mobileMonthSelect.addEventListener("change", (e) => {
+                    selectedMonth = e.target.value;
+                    renderSidebar(); // 讓電腦版的按鈕也同步狀態
+                    updateMainView();
+                    switchTab('list');
                 });
             }
 
-            // 渲染左側月份按鈕
-            function renderMonthButtons() {
+            function renderSidebar() {
+                // 清空電腦版按鈕與手機版選單
                 monthList.innerHTML = "";
+                mobileMonthSelect.innerHTML = "";
+                
                 for (let m = 1; m <= 12; m++) {
                     if (selectedYear === "2026" && m < 6) continue;
 
+                    // 1. 生成電腦版按鈕
                     const btn = document.createElement("button");
                     btn.className = "month-btn";
                     btn.textContent = `${m} 月份`;
-                    
                     if (m.toString() === selectedMonth) btn.classList.add("active");
-                    
                     btn.addEventListener("click", () => {
                         selectedMonth = m.toString();
-                        renderMonthButtons(); 
-                        updateMainView();     
+                        renderSidebar(); 
+                        updateMainView();  
+                        switchTab('list');
                     });
-                    
                     monthList.appendChild(btn);
+
+                    // 2. 生成手機版選項
+                    const opt = document.createElement("option");
+                    opt.value = m.toString();
+                    opt.textContent = `${m} 月份`;
+                    if (m.toString() === selectedMonth) opt.selected = true;
+                    mobileMonthSelect.appendChild(opt);
+                }
+                
+                // 3. 把「暫存區」也加入手機下拉選單最底端
+                const stashOpt = document.createElement("option");
+                stashOpt.value = 'stash';
+                stashOpt.textContent = `📥 暫存區`;
+                if (selectedMonth === 'stash') stashOpt.selected = true;
+                mobileMonthSelect.appendChild(stashOpt);
+
+                // 電腦版暫存區按鈕狀態
+                if (selectedMonth === 'stash') {
+                    btnStash.classList.add("active");
+                } else {
+                    btnStash.classList.remove("active");
                 }
             }
 
-            // 更新右側序號列表
+            btnStash.addEventListener("click", () => {
+                selectedMonth = 'stash';
+                renderSidebar();
+                updateMainView();
+                switchTab('list');
+            });
+
             function updateMainView() {
-                const targetKey = `${selectedYear}-${selectedMonth}`;
-                const currentKeys = keysDB[targetKey] || [];
-                
-                // 💡 標題更新為「數據統計」
-                currentMonthTitle.innerHTML = `📌 本月共收錄 <span>${currentKeys.length}</span> 個序號`;
-                targetMonthText.textContent = `${systemYear}年 ${systemMonth}月`; 
-                
                 keyList.innerHTML = "";
                 
-                if (currentKeys.length === 0) {
-                    keyList.innerHTML = `<p style="color:var(--text-muted); grid-column: 1/-1;">此月份尚無序號。</p>`;
-                    return;
+                if (selectedMonth === 'stash') {
+                    currentMonthTitle.innerHTML = `📥 暫存區 <span>(${userStashKeys.length} 個)</span>`;
+                    
+                    if (userStashKeys.length === 0) {
+                        keyList.innerHTML = `
+                            <div class="full-width-msg">
+                                <h3 style="color: var(--text-main); margin: 0 0 10px 0; font-size: 20px;">這裡目前空空的！</h3>
+                                <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 25px;">當你使用「智慧過濾器」找出的新序號，都會自動保存在這裡，方便你一次複製或匯出喔。</p>
+                                <button class="btn-large btn-process" onclick="document.getElementById('navBtnAdd').click()">前往智慧過濾器 ✨</button>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    userStashKeys.forEach(key => addKeyToDOM(key, true));
+
+                    const stashActions = document.createElement("div");
+                    stashActions.className = "full-width-actions";
+                    stashActions.innerHTML = `
+                        <button id="btnExportStash" class="btn-large btn-export">📄 匯出 (TXT)</button>
+                        <button id="btnCopyStash" class="btn-large btn-dc">💬 複製給 DC</button>
+                    `;
+                    keyList.appendChild(stashActions);
+
+                    document.getElementById("btnExportStash").addEventListener("click", () => exportData(userStashKeys, "用戶暫存區_新序號"));
+                    document.getElementById("btnCopyStash").addEventListener("click", () => copyDataDC(userStashKeys));
+
+                } else {
+                    const targetKey = `${selectedYear}-${selectedMonth}`;
+                    const currentKeys = keysDB[targetKey] || [];
+                    
+                    currentMonthTitle.innerHTML = `📌 本月收集 <span>${currentKeys.length}</span> 個`;
+                    
+                    if (currentKeys.length === 0) {
+                        keyList.innerHTML = `<p style="color:var(--text-muted); grid-column: 1/-1;">這個月還沒有序號喔。</p>`;
+                        return;
+                    }
+                    currentKeys.forEach(key => addKeyToDOM(key, false));
                 }
-                
-                currentKeys.forEach(key => addKeyToDOM(key, false));
             }
 
-            // 生成 DOM
             function addKeyToDOM(keyText, isNewTemp = false) {
                 const keyItem = document.createElement("div");
                 keyItem.className = "key-item";
-                
                 const wrapper = document.createElement("div");
                 wrapper.className = "key-input-wrapper";
 
@@ -180,7 +246,7 @@
                     newTag.className = "tag-new";
                     newTag.textContent = "NEW";
                     wrapper.appendChild(newTag);
-                    keyItem.style.borderColor = "rgba(16, 185, 129, 0.5)";
+                    keyItem.style.borderColor = "rgba(251, 191, 36, 0.5)"; 
                 }
 
                 const keyDisplay = document.createElement("input");
@@ -218,7 +284,6 @@
                 keyList.appendChild(keyItem);
             }
 
-            // 視圖切換 
             document.getElementById("navBtnList").addEventListener("click", () => switchTab('list'));
             document.getElementById("navBtnAdd").addEventListener("click", () => switchTab('add'));
 
@@ -237,59 +302,56 @@
                 }
             }
 
-            // 💡 跨月份全域過濾邏輯
             document.getElementById("btnProcess").addEventListener("click", () => {
                 const rawText = document.getElementById("rawInput").value;
-                if (!rawText.trim()) return alert("請先貼上序號！");
-
-                const currentSystemKey = `${systemYear}-${systemMonth}`;
-                if(!keysDB[currentSystemKey]) keysDB[currentSystemKey] = [];
+                if (!rawText.trim()) return alert("請先貼上序號喔！");
 
                 const extractedWords = rawText.split(/[\s,，、；;]+/);
                 let potentialKeys = extractedWords.map(k => k.trim()).filter(k => k.length > 5);
                 let uniqueInputKeys = [...new Set(potentialKeys)];
                 
-                // 取得所有月份的全部已知序號 (打平為一維陣列)
-                const allKnownKeys = Object.values(keysDB).flat();
+                const allGistKeys = Object.values(keysDB).flat();
+                const allKnownKeys = [...allGistKeys, ...userStashKeys];
                 
-                // 嚴格比對：只要出現在任何月份過，通通剔除
-                newlyProcessedKeys = uniqueInputKeys.filter(k => !allKnownKeys.includes(k));
+                let newlyProcessedKeys = uniqueInputKeys.filter(k => !allKnownKeys.includes(k));
                 const duplicateCount = potentialKeys.length - newlyProcessedKeys.length;
 
                 document.getElementById("processResult").style.display = "flex";
+                
                 if (newlyProcessedKeys.length > 0) {
                     document.getElementById("resultMsg").style.color = "var(--success-color)";
-                    document.getElementById("resultMsg").innerHTML = `🎉 成功提取 ${newlyProcessedKeys.length} 個新序號。(全域過濾 ${duplicateCount} 個重複)`;
+                    document.getElementById("resultMsg").innerHTML = `🎉 太棒了！找到 ${newlyProcessedKeys.length} 個全新序號。(幫你過濾了 ${duplicateCount} 個重複的)`;
                     document.getElementById("cleanOutput").value = newlyProcessedKeys.join('\n');
                     
-                    newlyProcessedKeys.forEach(key => keysDB[currentSystemKey].unshift(key));
+                    newlyProcessedKeys.forEach(key => userStashKeys.unshift(key));
                     
-                    if(selectedYear === systemYear.toString() && selectedMonth === systemMonth.toString()) {
+                    document.getElementById("btnCopyDC").onclick = () => copyDataDC(newlyProcessedKeys);
+                    document.getElementById("btnExportTxt").onclick = () => exportData(newlyProcessedKeys, "新過濾序號");
+
+                    if (selectedMonth === 'stash') {
                         updateMainView();
-                        const items = keyList.querySelectorAll('.key-item');
-                        for(let i=0; i<newlyProcessedKeys.length; i++) {
-                             items[i].style.borderColor = "rgba(16, 185, 129, 0.5)";
-                        }
                     }
+
                 } else {
                     document.getElementById("resultMsg").style.color = "#fbbf24";
-                    document.getElementById("resultMsg").innerHTML = `⚠️ 無新序號，貼上的內容皆已收錄於資料庫中。`;
+                    document.getElementById("resultMsg").innerHTML = `⚠️ 喔不！你貼的序號我們資料庫都已經有囉。`;
                     document.getElementById("cleanOutput").value = "";
                 }
             });
 
-            // 匯出與複製
-            document.getElementById("btnCopyDC").addEventListener("click", () => {
-                if(newlyProcessedKeys.length === 0) return alert("無序號");
-                navigator.clipboard.writeText(`哈囉！${systemMonth}月份有新的序號：\n\n${newlyProcessedKeys.join('\n')}`).then(() => alert("已複製！"));
-            });
-            document.getElementById("btnExportTxt").addEventListener("click", () => {
-                if(newlyProcessedKeys.length === 0) return alert("無序號");
+            function copyDataDC(dataArray) {
+                if(dataArray.length === 0) return alert("沒有序號可以複製喔");
+                navigator.clipboard.writeText(`哈囉！這裡有剛整理好的新序號：\n\n${dataArray.join('\n')}`).then(() => alert("✅ 已經複製好囉，快去貼上吧！"));
+            }
+
+            function exportData(dataArray, fileNamePrefix) {
+                if(dataArray.length === 0) return alert("沒有序號可以匯出喔");
+                const dateStr = new Date().toISOString().slice(0,10);
                 const a = document.createElement('a');
-                a.href = URL.createObjectURL(new Blob([newlyProcessedKeys.join('\n')]));
-                a.download = `${systemYear}年${systemMonth}月_新序號.txt`;
+                a.href = URL.createObjectURL(new Blob([dataArray.join('\n')]));
+                a.download = `${fileNamePrefix}_${dateStr}.txt`;
                 a.click();
-            });
+            }
         });
     </script>
 </body>
